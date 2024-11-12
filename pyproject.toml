@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "fastapi_project"
+version = "0.1.0"
+description = ""
+authors = ["Aliaksei Yafremau <447654972g@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = {extras = ["standard"], version = "^0.115.4"}
+sqlmodel = "^0.0.22"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
