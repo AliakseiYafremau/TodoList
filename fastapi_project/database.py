@@ -4,12 +4,18 @@ from sqlmodel import Field, SQLModel, create_engine, Session
 
 
 # Таблицы
+class User(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    username: str = Field(index=True, unique=True)
+    password: str
+
+
 class TODOList(SQLModel, table=True):
     id: int = Field(default=..., primary_key=True)
     title: str
 
 class Task(SQLModel, table=True):
-    id: int = Field(default=..., primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     todo_list: int = Field(default=..., foreign_key="todolist.id")
     note: str
 
