@@ -47,7 +47,7 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], session: Ses
     user = session.exec(select(User).where(User.username==username)).first()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return username
+    return user.id
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)

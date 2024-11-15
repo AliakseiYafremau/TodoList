@@ -3,6 +3,7 @@ from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from ..database import get_session, Task, TODOList, TODOListCreate
+from .users import get_current_user
 
 
 todo_router = APIRouter()
@@ -22,8 +23,11 @@ async def get_todolist(todo_id: int, session: SessionDP) -> TODOList:
     return todo
 
 @todo_router.post("/todo")
-async def create_task(todo: TODOListCreate, session: SessionDP) -> TODOList:
-    todo = TODOList(title=todo.title)
+async def create_task(todo: TODOListCreate, current_user: Annotated[str, Depends(get_current_user)], session: SessionDP) -> TODOList:
+    existing_todo = session.exec(select(TODOList).where(TODOList.title==todo.title)).first()
+    if existing_todo:
+        raise HTTPException(status_code=400, detail="Todo with this title already exists")
+    todo = TODOList(user=current_user, title=todo.title)
     session.add(todo)
     session.commit()
     session.refresh(todo)
