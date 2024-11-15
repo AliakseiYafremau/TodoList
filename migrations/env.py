@@ -1,4 +1,3 @@
-
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
@@ -13,7 +12,9 @@ from fastapi_project.database import db_url, User, TODOList, Task
 # access to the values within the .ini file in use.
 config = context.config
 
+print(db_url)
 config.set_main_option("sqlalchemy.url", str(db_url))
+print(db_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

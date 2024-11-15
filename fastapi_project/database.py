@@ -36,29 +36,18 @@ class TaskCreate(SQLModel):
     todo_list: int = Field(default=..., foreign_key="todolist.id")
     note: str
 
-from sqlalchemy.engine import URL
-from os import getenv
-
-# db_url = URL.create(
-#     drivername="postgresql+psycopg2",  # Или "postgresql+psycopg" для psycopg3
-#     username=getenv("DB_USER", "postgres"),
-#     password=getenv("DB_PASSWORD", ""),
-#     host=getenv("DB_HOST", "localhost"),
-#     port=getenv("DB_PORT", "5432"),
-#     database=getenv("DB_NAME", "mydatabase"),
-# )
-
 db_url = URL.create(
-    drivername="postgresql+psycopg2",
-    username="todo_user",
-    password="todo_password",
-    host="localhost",
-    port=5432,
-    database="todo_db",
+    drivername=getenv("DB_DRIVER", "sqlite"),  # Или "postgresql+psycopg" для psycopg3
+    username=getenv("DB_USER", ""),
+    password=getenv("DB_PASSWORD", ""),
+    host=getenv("DB_HOST", ""),
+    port=int(getenv("DB_PORT", 5432)),
+    database=getenv("DB_NAME", "mydatabase"),
 )
+db_url = "postgresql+psycopg2://todo_user:todo_password@localhost:5432/todo_db"
 print(db_url)
 
-connect_args = {"check_same_thread": False, "options": "-c client_encoding=utf8"}
+connect_args = {"check_same_thread": False, "options": "-c client_encoding=UTF8"}
 engine = create_engine(db_url, connect_args=connect_args)
 
 def create_db_and_tables():
