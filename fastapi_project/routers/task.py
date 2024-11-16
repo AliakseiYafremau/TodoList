@@ -1,12 +1,13 @@
 from typing import Annotated, List
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
-from ..database import get_session, Task, TaskCreate
+from fastapi import APIRouter, HTTPException
+from sqlmodel import select
+
+from ..database import Task, TaskCreate, SessionDP
 
 
 task_router = APIRouter()
-SessionDP = Annotated[Session, Depends(get_session)]
+
 
 
 @task_router.get("/task")

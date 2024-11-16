@@ -5,8 +5,8 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import jwt
-from sqlmodel import Session, select
-from ..database import get_session, User
+from sqlmodel import select
+from ..database import User, SessionDP
 from dotenv import load_dotenv
 from os import getenv
 
@@ -22,7 +22,6 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 user_router = APIRouter()
-SessionDP = Annotated[Session, Depends(get_session)]
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):

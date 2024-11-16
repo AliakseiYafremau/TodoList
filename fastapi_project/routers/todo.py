@@ -1,13 +1,12 @@
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
-from ..database import get_session, Task, TODOList, TODOListCreate
+from sqlmodel import select
+from ..database import Task, TODOList, TODOListCreate, SessionDP
 from .users import get_current_user
 
 
 todo_router = APIRouter()
-SessionDP = Annotated[Session, Depends(get_session)]
 
 
 @todo_router.get("/todo")

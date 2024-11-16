@@ -1,9 +1,11 @@
 from typing import Annotated
 
-from sqlmodel import Field, SQLModel, create_engine, Session
+from sqlmodel import Field, SQLModel
+
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from pathlib import Path
-from sqlalchemy.engine import URL
 from dotenv import load_dotenv
 from os import getenv
 
@@ -38,14 +40,25 @@ class TaskCreate(SQLModel):
 
 
 db_url = getenv("DB_URL")
+# print(db_url)
 
-connect_args = {"check_same_thread": False, "options": "-c client_encoding=UTF8"}
-engine = create_engine(db_url, connect_args=connect_args)
+engine = create_async_engine(db_url)
 
-def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
+async def create_db_and_tables():
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
 
 
-def get_session():
-    with Session(engine) as session:
+# async def get_session() -> AsyncSession:
+#     async session = AsyncSession(engine)
+#     try:
+#         yield session
+#     finally:
+#         await session.close()
+
+
+async def get_session() -> AsyncSession:
+    async with AsyncSession(engine) as session:
         yield session
+
+SessionDP = Annotated[AsyncSession, Depends(get_session)]
