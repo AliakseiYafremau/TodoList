@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from os import getenv
 from fastapi_project.database import get_session
 from sqlmodel import SQLModel
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 from fastapi_project.main import app
 
@@ -17,14 +17,12 @@ load_dotenv(dotenv_path=Path(__file__).parent / "../../.env", encoding="utf-8")
 test_db_url = getenv("TEST_DB_URL")
 engine = create_async_engine(test_db_url)
 
-TestSession = async_sessionmaker(engine, expire_on_commit=False)
+
+TestSession = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 async def override_get_db():
-    db = TestSession()
-    try:
+    async with TestSession() as db:
         yield db
-    finally:
-        db.close()
 
 app.dependency_overrides[get_session] = override_get_db
 
@@ -34,16 +32,19 @@ async def client():
         yield ac
 
 
+@pytest_asyncio.fixture(scope="module", autouse=True)
+async def setup():
+    # Create all the tables in the test database
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+    yield  # This will ensure setup runs before tests and teardown runs after tests
+
+    # Teardown: Drop all tables after tests are done
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.drop_all)
+
 @pytest.mark.asyncio
 async def test_root(client: httpx.AsyncClient):
     response = await client.get("/todo")
     assert response.status_code == 200
-
-async def setup():
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
-
-
-async def teardown():
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.drop_all)
+    assert response.json() == []
