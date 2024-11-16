@@ -29,6 +29,7 @@ class Task(SQLModel, table=True):
     todo_list: int = Field(default=..., foreign_key="todolist.id")
     note: str | None = Field(default=None)
 
+
 # Модели
 class TODOListCreate(SQLModel):
     title: str
@@ -36,6 +37,9 @@ class TODOListCreate(SQLModel):
 
 class TaskCreate(SQLModel):
     todo_list: int = Field(default=..., foreign_key="todolist.id")
+    note: str
+
+class TaskUpdate(SQLModel):
     note: str
 
 
@@ -47,14 +51,6 @@ engine = create_async_engine(db_url)
 async def create_db_and_tables():
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
-
-
-# async def get_session() -> AsyncSession:
-#     async session = AsyncSession(engine)
-#     try:
-#         yield session
-#     finally:
-#         await session.close()
 
 
 async def get_session() -> AsyncSession:

@@ -34,7 +34,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], session: SessionDP):
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], session: SessionDP):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
@@ -43,7 +43,8 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], session: Ses
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
     
-    user = session.exec(select(User).where(User.username==username)).first()
+    result = await session.execute(select(User).where(User.username==username))
+    user = result.scalars().first()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return user.id
@@ -61,20 +62,22 @@ def get_user(id: int, session: SessionDP) -> User:
     return user
 
 @user_router.post("/register")
-def register(username: str, password: str, session: SessionDP):
-    user = session.exec(select(User).where(User.username==username)).first()
+async def register(username: str, password: str, session: SessionDP):
+    result = await session.execute(select(User).where(User.username==username))
+    user = result.scalars().first()
     if user:
         raise HTTPException(status_code=400, detail="User already exists")
     hashed_password = get_password_hash(password)
     new_user = User(username=username, password=hashed_password)
     session.add(new_user)
-    session.commit()
-    session.refresh(new_user)
+    await session.commit()
+    await session.refresh(new_user)
     return {"msg": "User registered successfully"}
 
 @user_router.post("/login")
 async def login(username: str, password: str, session: SessionDP):
-    user = session.exec(select(User).where(User.username==username)).first()
+    result = await session.execute(select(User).where(User.username==username))
+    user = result.scalars().first()
     if not user or not verify_password(password, user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
