@@ -11,16 +11,16 @@ todo_router = APIRouter()
 
 # Получение списка todo
 @todo_router.get("/todo")
-async def get_todolists(session: SessionDP) -> List[TODOList]:
-    todo = await session.execute(select(TODOList))
+async def get_todolists(session: SessionDP, current_user: Annotated[str, Depends(get_current_user)]) -> List[TODOList]:
+    todo = await session.execute(select(TODOList).where(TODOList.user==current_user))
     return todo.scalars().all()
 
 
 # Получение конкретного todo
 @todo_router.get("/todo/{todo_id}")
-async def get_todolist(todo_id: int, session: SessionDP) -> TODOList:
+async def get_todolist(todo_id: int, session: SessionDP, current_user: Annotated[str, Depends(get_current_user)]) -> TODOList:
     todo = await session.get(TODOList, todo_id)
-    if not todo:
+    if not todo or todo.user != current_user:
         raise HTTPException(status_code=404, detail="Todo not found")
     return todo
 
@@ -41,7 +41,7 @@ async def create_task(todo: TODOListCreate, current_user: Annotated[str, Depends
 
 # Обновление todo
 @todo_router.put("/todo/{todo_id}")
-async def update_task(todo_id: int, new_todo: TODOListCreate, session: SessionDP) -> TODOList:
+async def update_task(todo_id: int, new_todo: TODOListCreate, session: SessionDP, current_user: Annotated[str, Depends(get_current_user)]) -> TODOList:
     old_todo: TODOList = await session.get(TODOList, todo_id)
     if not old_todo:
         raise HTTPException(status_code=404, detail="Todo not found")
@@ -55,7 +55,7 @@ async def update_task(todo_id: int, new_todo: TODOListCreate, session: SessionDP
 
 # Удаление todo
 @todo_router.delete("/todo/{todo_id}")
-async def delete_todo(todo_id: int, session: SessionDP) -> TODOList:
+async def delete_todo(todo_id: int, session: SessionDP, current_user: Annotated[str, Depends(get_current_user)]) -> TODOList:
     todo: TODOList = await session.get(TODOList, todo_id)
     if not todo:
         raise HTTPException(status_code=404, detail="Todo not found")
