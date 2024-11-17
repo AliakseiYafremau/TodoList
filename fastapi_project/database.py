@@ -6,10 +6,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from pathlib import Path
-from dotenv import load_dotenv
-from os import getenv
-
-load_dotenv(dotenv_path=Path(__file__).parent / "../.env", encoding="utf-8")
+from fastapi_project.config import settings
 
 
 # Таблицы
@@ -43,10 +40,7 @@ class TaskUpdate(SQLModel):
     note: str
 
 
-db_url = getenv("DB_URL")
-# print(db_url)
-
-engine = create_async_engine(db_url)
+engine = create_async_engine(settings.DB_URL)
 
 async def create_db_and_tables():
     async with engine.begin() as conn:

@@ -1,3 +1,4 @@
+from datetime import timezone, datetime
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -6,16 +7,8 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import jwt
 from sqlmodel import select
-from ..database import User, SessionDP
-from dotenv import load_dotenv
-from os import getenv
-
-load_dotenv()
-
-SECRET_KEY = getenv("SECRET_KEY")
-ALGORITHM = getenv("ALGORITHM")
-ACCESS_TOKEN_EXPIRE_MINUTES = getenv("ACCES_TOKEN_EXPIRE_MINUTES")
-
+from fastapi_project.database import User, SessionDP
+from fastapi_project.config import settings
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -27,16 +20,16 @@ user_router = APIRouter()
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], session: SessionDP):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         username = payload.get("sub")
         if username is None:
             raise HTTPException(status_code=401, detail="Invalid token")
@@ -81,7 +74,7 @@ async def login(username: str, password: str, session: SessionDP):
     if not user or not verify_password(password, user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    access_token = create_access_token(data={"sub": user.username}, expires_delta=timedelta(minutes=float(ACCESS_TOKEN_EXPIRE_MINUTES)))
+    access_token = create_access_token(data={"sub": user.username}, expires_delta=timedelta(minutes=float(settings.ACCESS_TOKEN_EXPIRE_MINUTES)))
     return {"access_token": access_token, "token_type": "bearer"}
 
 @user_router.get("/users/me")

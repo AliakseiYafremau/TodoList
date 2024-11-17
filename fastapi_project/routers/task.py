@@ -3,7 +3,7 @@ from typing import Annotated, List
 from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
-from ..database import Task, TaskCreate, TaskUpdate, SessionDP
+from fastapi_project.database import Task, TaskCreate, TaskUpdate, SessionDP
 
 
 task_router = APIRouter()

@@ -2,7 +2,7 @@ from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
-from ..database import Task, TODOList, TODOListCreate, SessionDP
+from fastapi_project.database import Task, TODOList, TODOListCreate, SessionDP
 from .users import get_current_user
 
 

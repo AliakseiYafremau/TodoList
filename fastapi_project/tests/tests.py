@@ -3,48 +3,67 @@ import pytest_asyncio
 import httpx
 
 from httpx import ASGITransport, AsyncClient
-from pathlib import Path
-from dotenv import load_dotenv
-from os import getenv
-from fastapi_project.database import get_session
-from sqlmodel import SQLModel
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-
-from fastapi_project.main import app
-
-load_dotenv(dotenv_path=Path(__file__).parent / "../../.env", encoding="utf-8")
-
-test_db_url = getenv("TEST_DB_URL")
-engine = create_async_engine(test_db_url)
+from fastapi_project.config import settings
+from fastapi_project.tests.conftest import app, override_get_db
+from fastapi_project.database import User, TODOList, Task
 
 
-TestSession = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-async def override_get_db():
-    async with TestSession() as db:
-        yield db
-
-app.dependency_overrides[get_session] = override_get_db
-
+# Создаем клиента
 @pytest_asyncio.fixture()
 async def client():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
 
-@pytest_asyncio.fixture(scope="module", autouse=True)
-async def setup():
-    # Create all the tables in the test database
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
-    yield  # This will ensure setup runs before tests and teardown runs after tests
+# Тесты
+async def test_create_user(client: httpx.AsyncClient):
+    response = await client.post("/register", params={"username": "test_user", "password": "test_password"})
+    assert response.status_code == 200
+    assert response.json() == {"msg": "User registered successfully"}
 
-    # Teardown: Drop all tables after tests are done
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.drop_all)
+    response = await client.post("/register", params={"username": "test_user", "password": "test_password"})
+    assert response.status_code == 400
+    assert response.json() == {"detail": "User already exists"}
 
-@pytest.mark.asyncio
-async def test_root(client: httpx.AsyncClient):
+    response = await client.post("/login", params={"username": "test_user", "password": "test_password"})
+    assert response.status_code == 200
+
+    response = await client.post("/login", params={"username": "test_user", "password": "wrong_password"})
+    assert response.status_code == 401
+
+    response = await client.post("/login", params={"username": "wrong_user", "password": "test_password"})
+    assert response.status_code == 401
+
+async def test_get_todos(client: httpx.AsyncClient):
     response = await client.get("/todo")
     assert response.status_code == 200
     assert response.json() == []
+
+    response = await client.get("/todo/1")
+    assert response.status_code == 404
+
+    response = await client.get("/todo/1/1")
+    assert response.status_code == 404
+
+    response = await client.get("/todo/2")
+    assert response.status_code == 404
+
+
+async def test_create_todo(client: httpx.AsyncClient):
+    response = await client.post("/login", params={"username": "test_user", "password": "test_password"})
+    token = response.json()["access_token"]
+
+    response = await client.post("/todo", json={"title": "Test todo"}, headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+
+    response = await client.post("/todo", json={"title": "Test todo"}, headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Todo with this title already exists"}
+
+    response = await client.post("/todo", json={"title": "Test todo1"})
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Not authenticated"}
+
+    response = await client.post("/todo", json={"title": "Test todo2"}, headers={"Authorization": f"Bearer wrong_token"})
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid token"}
