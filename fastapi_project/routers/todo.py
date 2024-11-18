@@ -3,7 +3,7 @@ from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 from fastapi_project.database import Task, TODOList, TODOListCreate, SessionDP
-from .users import get_current_user
+from fastapi_project.routers.users import get_current_user
 
 
 todo_router = APIRouter()
@@ -43,7 +43,7 @@ async def create_task(todo: TODOListCreate, current_user: Annotated[str, Depends
 @todo_router.put("/todo/{todo_id}")
 async def update_task(todo_id: int, new_todo: TODOListCreate, session: SessionDP, current_user: Annotated[str, Depends(get_current_user)]) -> TODOList:
     old_todo: TODOList = await session.get(TODOList, todo_id)
-    if not old_todo:
+    if not old_todo or old_todo.user != current_user:
         raise HTTPException(status_code=404, detail="Todo not found")
     todo_data = new_todo.model_dump(exclude_unset=True)
     old_todo.sqlmodel_update(todo_data)
@@ -57,7 +57,7 @@ async def update_task(todo_id: int, new_todo: TODOListCreate, session: SessionDP
 @todo_router.delete("/todo/{todo_id}")
 async def delete_todo(todo_id: int, session: SessionDP, current_user: Annotated[str, Depends(get_current_user)]) -> TODOList:
     todo: TODOList = await session.get(TODOList, todo_id)
-    if not todo:
+    if not todo or todo.user != current_user:
         raise HTTPException(status_code=404, detail="Todo not found")
     await session.delete(todo)
     await session.commit()

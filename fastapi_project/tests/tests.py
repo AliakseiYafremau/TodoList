@@ -16,37 +16,42 @@ async def client():
 
 
 # Тесты
+
+
+# Авторизация
 async def test_create_user(client: httpx.AsyncClient):
     """Авторизация и регистрация пользователей"""
 
     # Регистрируем двух пользователей
-    response = await client.post("/register", params={"username": "test_user1", "password": "test_password1"})
+    response = await client.post("/register", json={"username": "test_user1", "password": "test_password1"})
     assert response.status_code == 200
     assert response.json() == {"msg": "User registered successfully"}
 
-    response = await client.post("/register", params={"username": "test_user2", "password": "test_password2"})
+    response = await client.post("/register", json={"username": "test_user2", "password": "test_password2"})
     assert response.status_code == 200
     assert response.json() == {"msg": "User registered successfully"}
 
     # Пытаемся зарегистрировать одного пользователя дважды
-    response = await client.post("/register", params={"username": "test_user1", "password": "test_password1"})
+    response = await client.post("/register", json={"username": "test_user1", "password": "test_password1"})
     assert response.status_code == 400
     assert response.json() == {"detail": "User already exists"}
 
     # Проверяем авторизацию
-    response = await client.post("/login", params={"username": "test_user1", "password": "test_password1"})
+    response = await client.post("/login", json={"username": "test_user1", "password": "test_password1"})
     assert response.status_code == 200
     assert "access_token" in response.json().keys()
 
-    response = await client.post("/login", params={"username": "test_user1", "password": "wrong_password1"})
+    response = await client.post("/login", json={"username": "test_user1", "password": "wrong_password1"})
     assert response.status_code == 401
 
-    response = await client.post("/login", params={"username": "wrong_user", "password": "test_password"})
+    response = await client.post("/login", json={"username": "wrong_user", "password": "test_password"})
     assert response.status_code == 401
 
+
+# Проверка todo
 async def test_get_todos(client: httpx.AsyncClient):
-    """Получение списка задач"""
-    response = await client.post("/login", params={"username": "test_user1", "password": "test_password1"})
+    """Получение списка todo"""
+    response = await client.post("/login", json={"username": "test_user1", "password": "test_password1"})
     token = response.json()["access_token"]
 
     # Получаем список задач неавторизованным пользователем
@@ -82,10 +87,10 @@ async def test_get_todos(client: httpx.AsyncClient):
 
 
 async def test_create_todo(client: httpx.AsyncClient):
-    """Создание задачи"""
+    """Создание todo"""
 
     # Регистрируем пользователя
-    response = await client.post("/login", params={"username": "test_user1", "password": "test_password1"})
+    response = await client.post("/login", json={"username": "test_user1", "password": "test_password1"})
     token = response.json()["access_token"]
 
     # Создаем задачи
@@ -108,10 +113,10 @@ async def test_create_todo(client: httpx.AsyncClient):
 
 
 async def test_update_todo(client: httpx.AsyncClient):
-    """Обновление задачи"""
+    """Обновление todo"""
 
     # Регистрируем пользователя
-    response = await client.post("/login", params={"username": "test_user1", "password": "test_password1"})
+    response = await client.post("/login", json={"username": "test_user1", "password": "test_password1"})
     token = response.json()["access_token"]
 
     # Создаем задачу
@@ -140,13 +145,13 @@ async def test_update_todo(client: httpx.AsyncClient):
 
 
 async def test_delete_todo(client: httpx.AsyncClient):
-    """Удаление задачи"""
+    """Удаление todo"""
 
     # Регистрируем пользователей
-    response = await client.post("/login", params={"username": "test_user1", "password": "test_password1"})
+    response = await client.post("/login", json={"username": "test_user1", "password": "test_password1"})
     token = response.json()["access_token"]
 
-    response = await client.post("/login", params={"username": "test_user2", "password": "test_password2"})
+    response = await client.post("/login", json={"username": "test_user2", "password": "test_password2"})
     token_not_owner = response.json()["access_token"]
 
     # Создаем задачи
@@ -207,13 +212,13 @@ async def test_delete_todo(client: httpx.AsyncClient):
 
 
 async def test_owner_todo(client: httpx.AsyncClient):
-    """Проверка владельца задачи"""
+    """Проверка владельца todo"""
 
     # Регистрируем пользователей
-    response = await client.post("/login", params={"username": "test_user1", "password": "test_password1"})
+    response = await client.post("/login", json={"username": "test_user1", "password": "test_password1"})
     token = response.json()["access_token"]
 
-    response = await client.post("/login", params={"username": "test_user2", "password": "test_password2"})
+    response = await client.post("/login", json={"username": "test_user2", "password": "test_password2"})
     token_not_owner = response.json()["access_token"]
 
     # Создаем задачи
@@ -224,8 +229,8 @@ async def test_owner_todo(client: httpx.AsyncClient):
     assert response.status_code == 200
     assert ("id", todo_id) in response.json()[-1].items()
 
-    # Пытаемся получить владельца задачи неавторизованным пользователем
-    response = await client.get(f"/todo/{todo_id}")
+    # Пытаемся получить задачу пользователем, который не является владельцем
+    response = await client.get(f"/todo/{todo_id}", headers={"Authorization": f"Bearer {token_not_owner}"})
     assert response.status_code == 404
     assert response.json() == {"detail": "Todo not found"}
 
@@ -236,4 +241,33 @@ async def test_owner_todo(client: httpx.AsyncClient):
 
     # Пытаемся удалить задачу пользователем, который не является владельцем
     response = await client.delete(f"/todo/{todo_id}", headers={"Authorization": f"Bearer {token_not_owner}"})
-    
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Todo not found"}
+
+    response = await client.delete(f"/todo/{todo_id}", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+
+
+# Проверка task
+async def test_get_tasks(client: httpx.AsyncClient):
+    """Получение списка tasks"""
+    response = await client.post("/login", json={"username": "test_user1", "password": "test_password1"})
+    token = response.json()["access_token"]
+
+    response = await client.post("/login", json={"username": "test_user2", "password": "test_password2"})
+    token_not_owner = response.json()["access_token"]
+
+    # Создаем todo
+    response = await client.post("/todo", json={"title": "Test todo for task"}, headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    todo_id = response.json()["id"]
+
+    # Создаем task
+    response = await client.post(f"/task", json={"todo_list": todo_id, "note": "Test task"}, headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    task_id = response.json()["id"]
+
+    # Получаем список задач авторизованным пользователем
+    response = await client.get("/task", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    assert ("id", task_id) in response.json()[-1].items()

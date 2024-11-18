@@ -7,7 +7,7 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import jwt
 from sqlmodel import select
-from fastapi_project.database import User, SessionDP
+from fastapi_project.database import User, SessionDP, UserRead, UserRegister
 from fastapi_project.config import settings
 
 
@@ -55,28 +55,30 @@ def get_user(id: int, session: SessionDP) -> User:
     return user
 
 @user_router.post("/register")
-async def register(username: str, password: str, session: SessionDP):
-    result = await session.execute(select(User).where(User.username==username))
-    user = result.scalars().first()
-    if user:
+async def register(user: UserRegister, session: SessionDP):
+    result = await session.execute(select(User).where(User.username==user.username))
+    old_user = result.scalars().first()
+    if old_user:
         raise HTTPException(status_code=400, detail="User already exists")
-    hashed_password = get_password_hash(password)
-    new_user = User(username=username, password=hashed_password)
+    hashed_password = get_password_hash(user.password)
+    new_user = User(username=user.username, password=hashed_password)
     session.add(new_user)
     await session.commit()
     await session.refresh(new_user)
     return {"msg": "User registered successfully"}
 
 @user_router.post("/login")
-async def login(username: str, password: str, session: SessionDP):
-    result = await session.execute(select(User).where(User.username==username))
-    user = result.scalars().first()
-    if not user or not verify_password(password, user.password):
+async def login(user: UserRegister, session: SessionDP):
+    result = await session.execute(select(User).where(User.username==user.username))
+    login_user = result.scalars().first()
+    if not login_user or not verify_password(user.password, login_user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     access_token = create_access_token(data={"sub": user.username}, expires_delta=timedelta(minutes=float(settings.ACCESS_TOKEN_EXPIRE_MINUTES)))
     return {"access_token": access_token, "token_type": "bearer"}
 
 @user_router.get("/users/me")
-async def read_users_me(current_user: Annotated[str, Depends(get_current_user)]):
-    return {"username": current_user}
+async def read_users_me(session: SessionDP, current_user: Annotated[str, Depends(get_current_user)]):
+    result = await get_user(current_user, session)
+    user = UserRead.from_orm(result)
+    return user
